@@ -41,10 +41,17 @@ export default function Home() {
           </p>
           <a
             href="/advisor"
-            className="inline-block px-6 py-2 bg-[var(--primary)]/20 border border-[var(--primary)] text-[var(--primary)] rounded-lg font-medium hover:bg-[var(--primary)]/30 transition-all"
+            className="inline-block px-6 py-2 bg-[var(--primary)]/20 border border-[var(--primary)] text-[var(--primary)] rounded-lg font-medium hover:bg-[var(--primary)]/30 transition-all mr-2"
             style={{ fontFamily: "var(--font-lato)" }}
           >
             🔮 Advisor Portal
+          </a>
+          <a
+            href="/chat"
+            className="inline-block px-6 py-2 bg-[var(--accent)]/20 border border-[var(--accent)] text-[var(--accent)] rounded-lg font-medium hover:bg-[var(--accent)]/30 transition-all"
+            style={{ fontFamily: "var(--font-lato)" }}
+          >
+            📤 Share Button
           </a>
         </div>
 
