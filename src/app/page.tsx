@@ -39,6 +39,13 @@ export default function Home() {
           <p className="text-lg opacity-80" style={{ fontFamily: "var(--font-lato)" }}>
             Chat with Harmony
           </p>
+          <a
+            href="/advisor"
+            className="text-sm opacity-50 hover:opacity-100 transition-opacity"
+            style={{ fontFamily: "var(--font-lato)" }}
+          >
+            🔮 Advisor Login
+          </a>
         </div>
 
         <form
