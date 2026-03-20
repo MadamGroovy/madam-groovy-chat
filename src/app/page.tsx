@@ -36,15 +36,15 @@ export default function Home() {
           >
             Madam Groovy
           </h1>
-          <p className="text-lg opacity-80" style={{ fontFamily: "var(--font-lato)" }}>
+          <p className="text-lg opacity-80 mb-4" style={{ fontFamily: "var(--font-lato)" }}>
             Chat with Harmony
           </p>
           <a
             href="/advisor"
-            className="text-sm opacity-50 hover:opacity-100 transition-opacity"
+            className="inline-block px-6 py-2 bg-[var(--primary)]/20 border border-[var(--primary)] text-[var(--primary)] rounded-lg font-medium hover:bg-[var(--primary)]/30 transition-all"
             style={{ fontFamily: "var(--font-lato)" }}
           >
-            🔮 Advisor Login
+            🔮 Advisor Portal
           </a>
         </div>
 
