@@ -1,26 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import IntakeChat from "./components/IntakeChat";
 import ChatInterface from "./components/ChatInterface";
+import { IntakeData } from "./lib/intakeStore";
 
 export default function Home() {
-  const [chatStarted, setChatStarted] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    question: "",
-  });
-  const [freeMinutes] = useState(3);
+  const [mode, setMode] = useState<"landing" | "intake" | "chat">("landing");
+  const [intakeData, setIntakeData] = useState<IntakeData | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.name && formData.question) {
-      setChatStarted(true);
+  useEffect(() => {
+    const stored = localStorage.getItem("madamGroovy_currentIntake");
+    if (stored) {
+      const data = JSON.parse(stored) as IntakeData;
+      if (data.status === "waiting") {
+        setIntakeData(data);
+        setMode("intake");
+      }
+    }
+  }, []);
+
+  const startIntake = () => {
+    localStorage.removeItem("madamGroovy_currentIntake");
+    setMode("intake");
+  };
+
+  const proceedToChat = () => {
+    if (intakeData) {
+      setMode("chat");
     }
   };
 
-  if (chatStarted) {
-    return <ChatInterface {...formData} initialMinutes={freeMinutes} />;
+  if (mode === "intake") {
+    return <IntakeChat />;
+  }
+
+  if (mode === "chat" && intakeData) {
+    return (
+      <ChatInterface
+        name={intakeData.name}
+        phone=""
+        question={intakeData.question}
+        initialMinutes={3}
+      />
+    );
   }
 
   return (
@@ -55,81 +78,48 @@ export default function Home() {
           </a>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-[var(--card)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5 shadow-2xl"
-          style={{ fontFamily: "var(--font-lato)" }}
-        >
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium mb-2 opacity-80">
-              Your Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all"
-              placeholder="Enter your name"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium mb-2 opacity-80">
-              Phone Number <span className="text-xs opacity-50">(optional)</span>
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all"
-              placeholder="For follow-up contact"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="question" className="block text-sm font-medium mb-2 opacity-80">
-              What&apos;s on your mind?
-            </label>
-            <textarea
-              id="question"
-              value={formData.question}
-              onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all resize-none"
-              rows={3}
-              placeholder="Ask your question..."
-              required
-            />
-          </div>
-
-          <div className="bg-[var(--background)] rounded-xl p-4 text-center">
-            <span className="text-sm opacity-70">Your reading includes</span>
-            <div className="mt-2">
-              <span 
-                className="text-3xl font-bold text-[var(--accent)]"
-                style={{ fontFamily: "var(--font-cinzel)" }}
-              >
-                {freeMinutes}
-              </span>
-              <span className="text-lg ml-2 opacity-80">free minutes</span>
-            </div>
-          </div>
-
+        <div className="text-center mb-8">
           <button
-            type="submit"
-            className="w-full py-4 bg-[var(--primary)] hover:bg-[var(--primary-glow)] text-white font-bold rounded-xl transition-all duration-300 animate-pulse-glow flex items-center justify-center gap-3"
+            onClick={startIntake}
+            className="w-full py-6 bg-[var(--primary)] hover:bg-[var(--primary-glow)] text-white font-bold rounded-2xl transition-all duration-300 animate-pulse-glow flex flex-col items-center justify-center gap-2"
             style={{ fontFamily: "var(--font-cinzel)" }}
           >
-            <span className="text-2xl">🔮</span>
-            <span className="text-lg">START {freeMinutes} FREE MINUTES</span>
+            <span className="text-3xl">🔮</span>
+            <span className="text-lg">START YOUR READING</span>
+            <span className="text-xs font-normal opacity-70" style={{ fontFamily: "var(--font-lato)" }}>
+              3 free minutes to start
+            </span>
           </button>
+        </div>
 
-          <p className="text-center text-xs opacity-50">
-            Secure payment via Stripe • Your info stays private
-          </p>
-        </form>
+        <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-2xl p-6">
+          <h3 className="font-bold mb-4 text-center" style={{ fontFamily: "var(--font-cinzel)" }}>
+            How It Works
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="text-xl">1</span>
+              <div>
+                <p className="font-medium">Share what's on your mind</p>
+                <p className="text-sm opacity-60">Tell us your question in confidence</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl">2</span>
+              <div>
+                <p className="font-medium">Wait for your turn</p>
+                <p className="text-sm opacity-60">Madam Groovy will be with you shortly</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl">3</span>
+              <div>
+                <p className="font-medium">Get your reading</p>
+                <p className="text-sm opacity-60">Receive clarity and guidance</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   );

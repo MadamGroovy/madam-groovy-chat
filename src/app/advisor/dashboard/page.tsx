@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   getChatRequests,
@@ -14,16 +14,24 @@ import {
   ChatMessage,
   ClientNote,
 } from "@/lib/chatStore";
+import { getIntakes, IntakeData, updateIntake } from "@/lib/intakeStore";
+
+const NOTIFICATION_SOUND = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleR8XKJXa2b5eIBkjkt3iu3QiGS6T1uC5bR8SLJLV4bZqIBgtktTft2sfFjGQ1N21ayIYLozU3bNqIRkvjdPds2kgGTCO0dyyayIYMYzS3LBqIRkyjdDcsGohGTKM0NuvaiIZMovP27BqIRkyi8/bsGohGTKJz9uuaiIZMonP26xqIRkxic/brGohGTJxz9usaiEZMnHP26xqIRkycc/brGohGTJxz9usa";
 
 export default function AdvisorDashboard() {
   const router = useRouter();
   const [chatRequests, setChatRequests] = useState<ChatSession[]>([]);
   const [activeSessions, setActiveSessions] = useState<ChatSession[]>([]);
+  const [intakes, setIntakes] = useState<IntakeData[]>([]);
   const [clientNotes, setClientNotes] = useState<ClientNote[]>([]);
   const [earnings, setEarnings] = useState(0);
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
+  const [selectedIntake, setSelectedIntake] = useState<IntakeData | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [noteInput, setNoteInput] = useState("");
+  const [showIntakeResponse, setShowIntakeResponse] = useState(false);
+  const [intakeResponse, setIntakeResponse] = useState("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const loggedIn = localStorage.getItem("advisorLoggedIn");
@@ -32,10 +40,41 @@ export default function AdvisorDashboard() {
     }
   }, [router]);
 
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window && Notification.permission === "default") {
+      await Notification.requestPermission();
+    }
+  };
+
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio(NOTIFICATION_SOUND);
+      audio.volume = 0.8;
+      audio.play().catch(() => {});
+    } catch (e) {
+      console.log("Audio play failed", e);
+    }
+  };
+
+  const showBrowserNotification = (intake: IntakeData) => {
+    playNotificationSound();
+    
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("🔮 New Client Waiting!", {
+        body: `${intake.name}: ${intake.question.substring(0, 50)}...`,
+        icon: "/favicon.ico",
+        tag: intake.id,
+      });
+    }
+  };
+
   useEffect(() => {
+    requestNotificationPermission();
+
     const loadData = () => {
       setChatRequests(getChatRequests());
       setActiveSessions(getActiveSessions());
+      setIntakes(getIntakes().filter(i => i.status === "waiting"));
       setClientNotes(getClientNotes());
       setEarnings(getEarnings());
     };
@@ -43,14 +82,48 @@ export default function AdvisorDashboard() {
     loadData();
     const interval = setInterval(loadData, 2000);
 
-    const handleUpdate = () => loadData();
-    window.addEventListener("storage", handleUpdate);
+    const handleNewIntake = (e: Event) => {
+      const intake = (e as CustomEvent).detail as IntakeData;
+      showBrowserNotification(intake);
+      loadData();
+    };
+
+    window.addEventListener("newIntake", handleNewIntake as EventListener);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("newIntake", handleNewIntake as EventListener);
     };
   }, []);
+
+  const acceptIntake = (intake: IntakeData) => {
+    setSelectedIntake(intake);
+    setShowIntakeResponse(true);
+  };
+
+  const sendIntakeResponse = () => {
+    if (!selectedIntake || !intakeResponse.trim()) return;
+
+    const currentIntake = localStorage.getItem("madamGroovy_currentIntake");
+    if (currentIntake) {
+      const stored = JSON.parse(currentIntake);
+      localStorage.setItem("madamGroovy_currentIntake", JSON.stringify({
+        ...stored,
+        harmonyResponse: intakeResponse,
+        status: "active"
+      }));
+    }
+
+    updateIntake(selectedIntake.id, { 
+      status: "active",
+      harmonyResponse: intakeResponse 
+    });
+    
+    setShowIntakeResponse(false);
+    setIntakeResponse("");
+    setSelectedIntake(null);
+    setIntakes(getIntakes().filter(i => i.status === "waiting"));
+  };
 
   const acceptChat = (session: ChatSession) => {
     const accepted = { ...session, status: "active" as const };
@@ -146,7 +219,52 @@ export default function AdvisorDashboard() {
 
       <div className="flex h-[calc(100vh-80px)]">
         <aside className="w-80 bg-[var(--card)] border-r border-[var(--card-border)] overflow-y-auto">
-          <div className="p-4">
+          <div className="p-4 border-b border-[var(--card-border)]">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium opacity-60">
+                Waiting ({intakes.length})
+              </h2>
+              {intakes.length > 0 && (
+                <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+              )}
+            </h2>
+            {intakes.length === 0 ? (
+              <p className="text-sm opacity-40 text-center py-4">
+                No one waiting
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {intakes.map((intake) => (
+                  <button
+                    key={intake.id}
+                    onClick={() => setSelectedIntake(intake)}
+                    className={`w-full p-3 rounded-xl text-left transition-all ${
+                      selectedIntake?.id === intake.id
+                        ? "bg-[var(--accent)]"
+                        : "bg-[var(--background)] hover:bg-[var(--card-border)]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">{intake.name}</p>
+                      <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
+                        New
+                      </span>
+                    </div>
+                    <p className="text-xs opacity-60 truncate">
+                      {intake.question}
+                    </p>
+                    {intake.hasOtherPerson && (
+                      <p className="text-xs opacity-40 mt-1">
+                        + {intake.otherPersonName}: {intake.otherPersonDetail}
+                      </p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-b border-[var(--card-border)]">
             <h2 className="text-sm font-medium opacity-60 mb-3">
               Chat Requests ({chatRequests.length})
             </h2>
@@ -179,7 +297,7 @@ export default function AdvisorDashboard() {
             )}
           </div>
 
-          <div className="p-4 border-t border-[var(--card-border)]">
+          <div className="p-4">
             <h2 className="text-sm font-medium opacity-60 mb-3">
               Active Chats ({activeSessions.length})
             </h2>
@@ -214,7 +332,84 @@ export default function AdvisorDashboard() {
         </aside>
 
         <main className="flex-1 flex flex-col">
-          {selectedSession ? (
+          {selectedIntake && !showIntakeResponse ? (
+            <div className="flex-1 p-6">
+              <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-2xl p-6 max-w-2xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold" style={{ fontFamily: "var(--font-cinzel)" }}>
+                    {selectedIntake.name}
+                  </h2>
+                  <span className="text-sm opacity-50">
+                    {new Date(selectedIntake.createdAt).toLocaleTimeString()}
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm opacity-60 mb-1">Question</p>
+                    <p className="text-lg">{selectedIntake.question}</p>
+                  </div>
+
+                  {selectedIntake.hasOtherPerson && (
+                    <div className="bg-[var(--background)] rounded-xl p-4">
+                      <p className="text-sm opacity-60 mb-1">Reading about someone else</p>
+                      <p className="font-medium">{selectedIntake.otherPersonName}</p>
+                      <p className="text-sm opacity-70">{selectedIntake.otherPersonDetail}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3 mt-8">
+                  <button
+                    onClick={() => acceptIntake(selectedIntake)}
+                    className="flex-1 py-3 bg-[var(--accent)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
+                  >
+                    I'll be there in 5 min
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateIntake(selectedIntake.id, { status: "completed" });
+                      setIntakes(getIntakes().filter(i => i.status === "waiting"));
+                      setSelectedIntake(null);
+                    }}
+                    className="px-6 py-3 border border-[var(--card-border)] rounded-xl hover:bg-[var(--card-border)] transition-all"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : showIntakeResponse ? (
+            <div className="flex-1 p-6">
+              <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-2xl p-6 max-w-2xl">
+                <h3 className="font-bold mb-4">Send response to {selectedIntake?.name}</h3>
+                <textarea
+                  value={intakeResponse}
+                  onChange={(e) => setIntakeResponse(e.target.value)}
+                  placeholder="e.g., I'll be with you in about 5 minutes. Please stay on this page."
+                  className="w-full h-32 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary)] mb-4"
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={sendIntakeResponse}
+                    disabled={!intakeResponse.trim()}
+                    className="flex-1 py-3 bg-[var(--accent)] text-white rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50"
+                  >
+                    Send & Start Chat
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowIntakeResponse(false);
+                      setIntakeResponse("");
+                    }}
+                    className="px-6 py-3 border border-[var(--card-border)] rounded-xl hover:bg-[var(--card-border)] transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : selectedSession ? (
             <>
               <div className="bg-[var(--card)] border-b border-[var(--card-border)] px-6 py-4 flex items-center justify-between">
                 <div>
@@ -333,10 +528,10 @@ export default function AdvisorDashboard() {
               <div className="text-center">
                 <span className="text-6xl opacity-20">🌙</span>
                 <p className="text-lg opacity-40 mt-4">
-                  Select a chat to start responding
+                  Select someone to respond
                 </p>
                 <p className="text-sm opacity-30 mt-2">
-                  New requests will appear here automatically
+                  Waiting clients appear at the top
                 </p>
               </div>
             </div>
