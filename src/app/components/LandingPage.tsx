@@ -14,7 +14,7 @@ export default function LandingPage() {
 
   if (showChat) {
     return (
-      <div className="min-h-screen bg-[#0f0f0f] transition-opacity duration-500 opacity-0 animate-fadeIn">
+      <div className="min-h-screen bg-[#0f0f0f]">
         <IntakeChat />
       </div>
     );
@@ -48,19 +48,6 @@ export default function LandingPage() {
         START YOUR READING
       </button>
 
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.5s ease forwards;
-        }
-      `}</style>
     </div>
   );
 }
