@@ -8,6 +8,14 @@ import { IntakeData } from "./lib/intakeStore";
 export default function Home() {
   const [mode, setMode] = useState<"landing" | "intake" | "chat">("landing");
   const [intakeData, setIntakeData] = useState<IntakeData | null>(null);
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("admin") === "true") {
+      setShowAdmin(true);
+    }
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem("madamGroovy_currentIntake");
@@ -62,20 +70,24 @@ export default function Home() {
           <p className="text-lg opacity-80 mb-4" style={{ fontFamily: "var(--font-lato)" }}>
             Chat with Harmony
           </p>
-          <a
-            href="/advisor"
-            className="inline-block px-6 py-2 bg-[var(--primary)]/20 border border-[var(--primary)] text-[var(--primary)] rounded-lg font-medium hover:bg-[var(--primary)]/30 transition-all mr-2"
-            style={{ fontFamily: "var(--font-lato)" }}
-          >
-            🔮 Advisor Portal
-          </a>
-          <a
-            href="/chat"
-            className="inline-block px-6 py-2 bg-[var(--accent)]/20 border border-[var(--accent)] text-[var(--accent)] rounded-lg font-medium hover:bg-[var(--accent)]/30 transition-all"
-            style={{ fontFamily: "var(--font-lato)" }}
-          >
-            📤 Share Button
-          </a>
+          {showAdmin && (
+            <>
+              <a
+                href="/advisor"
+                className="inline-block px-6 py-2 bg-[var(--primary)]/20 border border-[var(--primary)] text-[var(--primary)] rounded-lg font-medium hover:bg-[var(--primary)]/30 transition-all mr-2"
+                style={{ fontFamily: "var(--font-lato)" }}
+              >
+                🔮 Advisor Portal
+              </a>
+              <a
+                href="/chat"
+                className="inline-block px-6 py-2 bg-[var(--accent)]/20 border border-[var(--accent)] text-[var(--accent)] rounded-lg font-medium hover:bg-[var(--accent)]/30 transition-all"
+                style={{ fontFamily: "var(--font-lato)" }}
+              >
+                📤 Share Button
+              </a>
+            </>
+          )}
         </div>
 
         <div className="text-center mb-8">
