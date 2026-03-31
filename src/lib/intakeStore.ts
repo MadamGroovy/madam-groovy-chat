@@ -7,6 +7,7 @@ export interface IntakeData {
   hasOtherPerson: boolean;
   status: "waiting" | "active" | "completed";
   createdAt: number;
+  harmonyResponse?: string;
 }
 
 export function generateSessionId(): string {

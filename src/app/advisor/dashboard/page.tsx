@@ -221,13 +221,13 @@ export default function AdvisorDashboard() {
         <aside className="w-80 bg-[var(--card)] border-r border-[var(--card-border)] overflow-y-auto">
           <div className="p-4 border-b border-[var(--card-border)]">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium opacity-60">
+              <h2 className="text-sm font-medium opacity-60 flex items-center gap-2">
                 Waiting ({intakes.length})
+                {intakes.length > 0 && (
+                  <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                )}
               </h2>
-              {intakes.length > 0 && (
-                <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
-              )}
-            </h2>
+            </div>
             {intakes.length === 0 ? (
               <p className="text-sm opacity-40 text-center py-4">
                 No one waiting
