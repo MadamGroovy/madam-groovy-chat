@@ -45,7 +45,7 @@ export default function ChatInterface({
   useEffect(() => {
     const initialMsg: ChatMessage = {
       id: "1",
-      text: `Welcome, ${name}! I'm Madam Groovy. I see your question: "${question}". Let me tune in and find the clarity you're seeking.`,
+      text: `Hello, you're currently first in line. Let me connect you with Madam Groovy — please hang on.`,
       sender: "harmony",
       timestamp: Date.now(),
     };
