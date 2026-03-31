@@ -45,7 +45,7 @@ export default function LandingPage() {
           e.currentTarget.style.boxShadow = "0 0 20px rgba(245, 215, 142, 0.4)";
         }}
       >
-        Start Your Reading
+        START YOUR READING
       </button>
 
       <style jsx>{`
