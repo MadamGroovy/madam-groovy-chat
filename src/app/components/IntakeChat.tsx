@@ -11,9 +11,9 @@ interface Message {
 }
 
 const aiGreetings = [
-  "Welcome, seeker. I'm the guardian of this sacred space.",
-  "Hello, beautiful soul. I've been expecting you.",
-  "Welcome. The universe brought you here for a reason.",
+  "Hello! You've taken the first step.",
+  "Welcome. You've taken the first step.",
+  "Hello, beautiful soul. You've taken the first step.",
 ];
 
 const aiNameAsks = [
