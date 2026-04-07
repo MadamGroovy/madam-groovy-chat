@@ -8,6 +8,7 @@ import {
   ChatSession,
   ChatMessage,
 } from "@/lib/chatStore";
+import { sendNotification } from "@/lib/notification";
 
 const PRICE_PER_MINUTE = 1;
 
@@ -19,11 +20,22 @@ const minuteOptions = [
   { minutes: 30, price: 25, label: "30 min", discount: true },
 ];
 
+interface IntakeFlow {
+  name: string;
+  topic: string;
+  focus: "person" | "self" | "";
+  personName: string;
+  personContext: string;
+  lifeArea: string;
+  coreIssue: string;
+}
+
 interface ChatInterfaceProps {
   name: string;
   phone: string;
   question: string;
   initialMinutes: number;
+  intakeFlow?: IntakeFlow;
 }
 
 export default function ChatInterface({
@@ -31,6 +43,7 @@ export default function ChatInterface({
   phone,
   question,
   initialMinutes,
+  intakeFlow,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [remainingSeconds, setRemainingSeconds] = useState(initialMinutes * 60);
@@ -38,6 +51,7 @@ export default function ChatInterface({
   const [newMessage, setNewMessage] = useState("");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [showAddMinutes, setShowAddMinutes] = useState(false);
+  const [notified, setNotified] = useState(false);
   const [sessionId] = useState(generateSessionId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -61,9 +75,10 @@ export default function ChatInterface({
       status: "waiting",
       createdAt: Date.now(),
       earnings: 0,
+      intakeFlow,
     };
     addChatRequest(session);
-  }, [name, phone, question, initialMinutes, sessionId]);
+  }, [name, phone, question, initialMinutes, sessionId, intakeFlow]);
 
   useEffect(() => {
     if (remainingSeconds <= 0 && remainingSeconds >= -1) {
@@ -87,6 +102,7 @@ export default function ChatInterface({
                 status: "active",
                 createdAt: Date.now(),
                 earnings: 0,
+                intakeFlow,
               };
               updateSession(session);
               return msgs;
@@ -97,7 +113,7 @@ export default function ChatInterface({
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [remainingSeconds, sessionId, name, phone, question]);
+  }, [remainingSeconds, sessionId, name, phone, question, intakeFlow]);
 
   useEffect(() => {
     const handleStorage = () => {
@@ -128,7 +144,7 @@ export default function ChatInterface({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || remainingSeconds <= 0) return;
 
@@ -152,8 +168,34 @@ export default function ChatInterface({
       status: "active",
       createdAt: Date.now(),
       earnings: 0,
+      intakeFlow,
     };
     updateSession(session);
+
+    if (!notified && messages.length === 1) {
+      setNotified(true);
+      try {
+        const baseUrl = window.location.origin;
+        await fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientName: name,
+            firstMessage: newMessage,
+            topic: intakeFlow?.topic,
+            focus: intakeFlow?.focus,
+            personName: intakeFlow?.personName,
+            personContext: intakeFlow?.personContext,
+            lifeArea: intakeFlow?.lifeArea,
+            coreIssue: intakeFlow?.coreIssue,
+            sessionId: sessionId,
+            sessionLink: `${baseUrl}/advisor/dashboard`,
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to send notification:", err);
+      }
+    }
   };
 
   const handleAddMinutes = async (minutes: number, price: number) => {
@@ -214,6 +256,50 @@ export default function ChatInterface({
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4"
       >
+        {intakeFlow && (
+          <div className="bg-[var(--card)] border border-[var(--card-border)] rounded-xl p-4 mb-4">
+            <div className="text-xs uppercase tracking-wider opacity-50 mb-2">
+              Intake Summary
+            </div>
+            <div className="space-y-1 text-sm">
+              <div>
+                <span className="opacity-70">Name:</span> {intakeFlow.name}
+              </div>
+              <div>
+                <span className="opacity-70">Topic:</span> {intakeFlow.topic}
+              </div>
+              <div>
+                <span className="opacity-70">Focus:</span>{" "}
+                {intakeFlow.focus === "person" ? "Person" : "Self"}
+              </div>
+              {intakeFlow.focus === "person" && intakeFlow.personName && (
+                <>
+                  <div>
+                    <span className="opacity-70">Person:</span>{" "}
+                    {intakeFlow.personName}
+                  </div>
+                  <div>
+                    <span className="opacity-70">Work/Hobby:</span>{" "}
+                    {intakeFlow.personContext}
+                  </div>
+                </>
+              )}
+              {intakeFlow.focus === "self" && intakeFlow.lifeArea && (
+                <>
+                  <div>
+                    <span className="opacity-70">Life Area:</span>{" "}
+                    {intakeFlow.lifeArea}
+                  </div>
+                  <div>
+                    <span className="opacity-70">Uncertainty:</span>{" "}
+                    {intakeFlow.coreIssue}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {messages.map((msg) => (
           <div
             key={msg.id}

@@ -15,6 +15,14 @@ import {
   ClientNote,
 } from "@/lib/chatStore";
 import { getIntakes, IntakeData, updateIntake } from "@/lib/intakeStore";
+import {
+  fetchAvailability,
+  setAvailability,
+  getWaitlist,
+  removeFromWaitlist,
+  markNotified,
+  AvailabilityStatus,
+} from "@/lib/availability";
 
 const NOTIFICATION_SOUND = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleR8XKJXa2b5eIBkjkt3iu3QiGS6T1uC5bR8SLJLV4bZqIBgtktTft2sfFjGQ1N21ayIYLozU3bNqIRkvjdPds2kgGTCO0dyyayIYMYzS3LBqIRkyjdDcsGohGTKM0NuvaiIZMovP27BqIRkyi8/bsGohGTKJz9uuaiIZMonP26xqIRkxic/brGohGTJxz9usaiEZMnHP26xqIRkycc/brGohGTJxz9usa";
 
@@ -31,6 +39,8 @@ export default function AdvisorDashboard() {
   const [noteInput, setNoteInput] = useState("");
   const [showIntakeResponse, setShowIntakeResponse] = useState(false);
   const [intakeResponse, setIntakeResponse] = useState("");
+  const [availabilityStatus, setAvailabilityStatus] = useState<AvailabilityStatus>("offline");
+  const [waitlist, setWaitlist] = useState<any[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -39,6 +49,45 @@ export default function AdvisorDashboard() {
       router.push("/advisor");
     }
   }, [router]);
+
+  useEffect(() => {
+    fetchAvailability().then(setAvailabilityStatus);
+    setWaitlist(getWaitlist());
+    const interval = setInterval(() => {
+      fetchAvailability().then(setAvailabilityStatus);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleStatusChange = async (newStatus: AvailabilityStatus) => {
+    const prevStatus = availabilityStatus;
+    setAvailability(newStatus);
+    setAvailabilityStatus(newStatus);
+    
+    if (prevStatus !== "available" && newStatus === "available") {
+      const currentWaitlist = getWaitlist();
+      for (const entry of currentWaitlist) {
+        if ((entry.email || entry.phone) && !entry.notified) {
+          try {
+            await fetch("/api/notify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                to: entry.email || entry.phone,
+                type: entry.email ? "email" : "sms",
+                subject: "Madam Groovy is Now Available!",
+                message: `Hi ${entry.name}! Good news - Madam Groovy is now available for readings. Head to the website to connect: https://madamgroovy.com`,
+              }),
+            });
+            markNotified(entry.email || entry.phone || "");
+          } catch (e) {
+            console.error("Failed to notify waitlist:", e);
+          }
+        }
+      }
+      setWaitlist(getWaitlist());
+    }
+  };
 
   const requestNotificationPermission = async () => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -198,6 +247,38 @@ export default function AdvisorDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 bg-[var(--background)] rounded-lg p-1">
+              <button
+                onClick={() => handleStatusChange("available")}
+                className={`px-3 py-1.5 rounded-md text-sm transition-all ${
+                  availabilityStatus === "available"
+                    ? "bg-green-500 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Available
+              </button>
+              <button
+                onClick={() => handleStatusChange("in_session")}
+                className={`px-3 py-1.5 rounded-md text-sm transition-all ${
+                  availabilityStatus === "in_session"
+                    ? "bg-yellow-500 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                In Session
+              </button>
+              <button
+                onClick={() => handleStatusChange("offline")}
+                className={`px-3 py-1.5 rounded-md text-sm transition-all ${
+                  availabilityStatus === "offline"
+                    ? "bg-gray-500 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                Offline
+              </button>
+            </div>
             <div className="text-right">
               <p className="text-sm opacity-60">Today&apos;s Earnings</p>
               <p
@@ -325,6 +406,43 @@ export default function AdvisorDashboard() {
                       {session.question}
                     </p>
                   </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-t border-[var(--card-border)]">
+            <h2 className="text-sm font-medium opacity-60 mb-3">
+              Waitlist ({waitlist.length})
+            </h2>
+            {waitlist.length === 0 ? (
+              <p className="text-sm opacity-40 text-center py-4">No one on waitlist</p>
+            ) : (
+              <div className="space-y-2">
+                {waitlist.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="p-3 bg-[var(--background)] rounded-xl"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">{entry.name}</p>
+                      <button
+                        onClick={() => {
+                          removeFromWaitlist(entry.id);
+                          setWaitlist(getWaitlist());
+                        }}
+                        className="text-xs text-red-400 hover:text-red-300"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <p className="text-xs opacity-60">
+                      {entry.email || entry.phone || "No contact"}
+                    </p>
+                    <p className="text-xs opacity-40 mt-1">
+                      {entry.notified ? "✓ Notified" : "Not notified"}
+                    </p>
+                  </div>
                 ))}
               </div>
             )}

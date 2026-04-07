@@ -10,58 +10,68 @@ interface Message {
   timestamp: number;
 }
 
-const aiGreetings = [
-  "Hello! You've taken the first step.",
-  "Welcome. You've taken the first step.",
-  "Hello, beautiful soul. You've taken the first step.",
-];
+interface IntakeFlow {
+  name: string;
+  topic: string;
+  focus: "person" | "self" | "";
+  personName: string;
+  personContext: string;
+  lifeArea: string;
+  coreIssue: string;
+}
 
-const aiNameAsks = [
-  "Before we begin, what shall I call you?",
-  "What name resonates with you?",
-  "By what name shall I know you?",
-];
+interface IntakeFlow {
+  name: string;
+  topic: string;
+  focus: "person" | "self" | "";
+  personName: string;
+  personContext: string;
+  lifeArea: string;
+  coreIssue: string;
+}
 
-const aiQuestionAsks = [
-  "Now... what's stirring in your heart or mind?",
-  "What would you like guidance on?",
-  "What brings you here today?",
-];
+interface IntakeChatProps {
+  onComplete?: (flow: IntakeFlow) => void;
+}
 
-const aiOtherPersonAsks = [
-  "Would you like me to look into someone else's energy? A partner, friend, or family member?",
-  "Is there someone else's path you'd like me to glimpse?",
-  "Would you like clarity on someone else's situation?",
-];
-
-export default function IntakeChat() {
+export default function IntakeChat({ onComplete }: IntakeChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [step, setStep] = useState<"greeting" | "name" | "question" | "otherPerson" | "otherName" | "otherDetail" | "complete">("greeting");
-  const [intakeData, setIntakeData] = useState({
+  const [step, setStep] = useState<
+    | "opening"
+    | "name"
+    | "topic"
+    | "focus"
+    | "personName"
+    | "personContext"
+    | "lifeArea"
+    | "coreIssue"
+    | "grounding"
+    | "ready"
+  >("opening");
+  const [flow, setFlow] = useState<IntakeFlow>({
     name: "",
-    question: "",
-    otherPersonName: "",
-    otherPersonDetail: "",
-    hasOtherPerson: false,
+    topic: "",
+    focus: "",
+    personName: "",
+    personContext: "",
+    lifeArea: "",
+    coreIssue: "",
   });
   const [waitingPosition, setWaitingPosition] = useState(1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const randomGreeting = aiGreetings[Math.floor(Math.random() * aiGreetings.length)];
-    const randomNameAsk = aiNameAsks[Math.floor(Math.random() * aiNameAsks.length)];
-    
     setMessages([
       {
         id: "1",
-        text: randomGreeting,
+        text: "Hi. You're in the right place. Before you begin your free 3 minutes, I'm going to help you get oriented for the reading.",
         sender: "ai",
         timestamp: Date.now(),
       },
       {
         id: "2",
-        text: randomNameAsk,
+        text: "What's your first name?",
         sender: "ai",
         timestamp: Date.now() + 100,
       },
@@ -73,128 +83,142 @@ export default function IntakeChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const getWaitingPosition = (): number => {
-    const stored = localStorage.getItem("madamGroovy_intakes");
-    if (!stored) return 1;
-    const intakes = JSON.parse(stored);
-    return intakes.filter((i: IntakeData) => i.status === "waiting").length + 1;
+  const addMessage = (text: string, sender: "ai" | "client") => {
+    setMessages((prev) => [
+      ...prev,
+      { id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, text, sender, timestamp: Date.now() },
+    ]);
   };
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: input,
-      sender: "client",
-      timestamp: Date.now(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-
-    setTimeout(() => {
-      processResponse(input);
-    }, 500);
-    
+    const response = input.trim();
+    addMessage(response, "client");
     setInput("");
-  };
 
-  const addAIResponse = (text: string) => {
-    const aiMessage: Message = {
-      id: Date.now().toString(),
-      text,
-      sender: "ai",
-      timestamp: Date.now(),
-    };
-    setMessages((prev) => [...prev, aiMessage]);
-  };
-
-  const processResponse = (response: string) => {
     switch (step) {
       case "name":
-        setIntakeData((prev) => ({ ...prev, name: response }));
-        setStep("question");
-        addAIResponse(aiQuestionAsks[Math.floor(Math.random() * aiQuestionAsks.length)]);
+        setFlow((prev) => ({ ...prev, name: response }));
+        setStep("topic");
+        addMessage("What would you like clarity on today?", "ai");
         break;
 
-      case "question":
-        setIntakeData((prev) => ({ ...prev, question: response }));
-        setStep("otherPerson");
-        addAIResponse(aiOtherPersonAsks[Math.floor(Math.random() * aiOtherPersonAsks.length)]);
+      case "topic":
+        setFlow((prev) => ({ ...prev, topic: response }));
+        setStep("focus");
+        addMessage(
+          "Is this about a specific person, or more about your own path?",
+          "ai"
+        );
         break;
 
-      case "otherPerson":
-        const isYes = response.toLowerCase().includes("yes") || response.toLowerCase().includes("yeah") || response.toLowerCase().includes("sure") || response.toLowerCase().includes("ok") || response.toLowerCase().includes("okay");
+      case "focus":
+        const lowerResponse = response.toLowerCase();
+        const isPerson =
+          lowerResponse.includes("person") ||
+          lowerResponse.includes("someone") ||
+          lowerResponse.includes("them") ||
+          lowerResponse.includes("other") ||
+          lowerResponse.includes("partner") ||
+          lowerResponse.includes("family") ||
+          lowerResponse.includes("mother") ||
+          lowerResponse.includes("father") ||
+          lowerResponse.includes("mom") ||
+          lowerResponse.includes("dad") ||
+          lowerResponse.includes("friend") ||
+          lowerResponse.includes("ex");
         
-        if (isYes) {
-          setIntakeData((prev) => ({ ...prev, hasOtherPerson: true }));
-          setStep("otherName");
-          addAIResponse("What is their name? Just their first name is fine.");
+        const isSelfTopic =
+          lowerResponse.includes("job") ||
+          lowerResponse.includes("career") ||
+          lowerResponse.includes("work") ||
+          lowerResponse.includes("money") ||
+          lowerResponse.includes("finances") ||
+          lowerResponse.includes("love") ||
+          lowerResponse.includes("relationship") ||
+          lowerResponse.includes("direction") ||
+          lowerResponse.includes("life") ||
+          lowerResponse.includes("future") ||
+          lowerResponse.includes("decision");
+        
+        if (isPerson && !isSelfTopic) {
+          setFlow((prev) => ({ ...prev, focus: "person" }));
+          setStep("personName");
+          addMessage("What's their first name?", "ai");
         } else {
-          completeIntake();
+          setFlow((prev) => ({ ...prev, focus: "self" }));
+          setStep("lifeArea");
+          addMessage(
+            "What area of your life does this relate to most? (love, work, direction, something else)",
+            "ai"
+          );
         }
         break;
 
-      case "otherName":
-        setIntakeData((prev) => ({ ...prev, otherPersonName: response }));
-        setStep("otherDetail");
-        addAIResponse("What do they do? Their job, hobby, or what stands out about them?");
+      case "personName":
+        setFlow((prev) => ({ ...prev, personName: response }));
+        setStep("personContext");
+        addMessage(
+          "Thank you. What do they do for work, or what's something they spend a lot of time doing? It helps Harmony connect more clearly.",
+          "ai"
+        );
         break;
 
-      case "otherDetail":
-        setIntakeData((prev) => ({ ...prev, otherPersonDetail: response }));
-        completeIntake();
+      case "personContext":
+        setFlow((prev) => ({ ...prev, personContext: response }));
+        setStep("grounding");
+        addMessage("That helps bring the situation into focus.", "ai");
+        setTimeout(() => {
+          addMessage("Take a breath and settle in.", "ai");
+        }, 1500);
+        setTimeout(() => {
+          setStep("ready");
+          addMessage(
+            "When you're ready, your 3 minutes will begin.",
+            "ai"
+          );
+        }, 3000);
+        break;
+
+      case "lifeArea":
+        setFlow((prev) => ({ ...prev, lifeArea: response }));
+        setStep("coreIssue");
+        addMessage("What feels most uncertain or unresolved about it?", "ai");
+        break;
+
+      case "coreIssue":
+        setFlow((prev) => ({ ...prev, coreIssue: response }));
+        setStep("grounding");
+        addMessage("Thank you. That gives a clear starting point.", "ai");
+        setTimeout(() => {
+          addMessage("Take a breath and settle in.", "ai");
+        }, 1500);
+        setTimeout(() => {
+          setStep("ready");
+          addMessage(
+            "When you're ready, your 3 minutes will begin.",
+            "ai"
+          );
+        }, 3000);
         break;
     }
-  };
-
-  const completeIntake = () => {
-    const position = getWaitingPosition();
-    setWaitingPosition(position);
-    setStep("complete");
-
-    const sessionId = generateSessionId();
-    const intake: IntakeData = {
-      id: sessionId,
-      name: intakeData.name,
-      question: intakeData.question,
-      otherPersonName: intakeData.otherPersonName,
-      otherPersonDetail: intakeData.otherPersonDetail,
-      hasOtherPerson: intakeData.hasOtherPerson,
-      status: "waiting",
-      createdAt: Date.now(),
-    };
-
-    addIntake(intake);
-    localStorage.setItem("madamGroovy_currentIntake", JSON.stringify(intake));
-
-    let completeMsg = `Thank you, ${intakeData.name}. Your energy is received. `;
-    
-    if (position === 1) {
-      completeMsg += "You are next in line. Madam Groovy will be with you shortly.";
-    } else {
-      completeMsg += `You are number ${position} in line. Please wait for your turn.`;
-    }
-
-    if (intakeData.hasOtherPerson) {
-      completeMsg += `\n\nI've noted your interest in ${intakeData.otherPersonName}.`;
-    }
-
-    addAIResponse(completeMsg);
-
-    window.dispatchEvent(new CustomEvent("newIntake", { detail: intake }));
   };
 
   return (
-    <main className="relative z-10 min-h-screen flex flex-col">
-      <header className="bg-[var(--card)] border-b border-[var(--card-border)] px-4 py-3">
+    <main className="relative z-10 min-h-screen flex flex-col bg-[#0f0f0f]">
+      <header className="bg-[#1a1a1a] border-b border-[#333] px-4 py-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl">🔮</span>
           <div>
-            <h2 className="font-bold" style={{ fontFamily: "var(--font-cinzel)" }}>
-              Intakes
+            <h2
+              className="font-bold"
+              style={{ fontFamily: "var(--font-cinzel)" }}
+            >
+              Madam Groovy
             </h2>
-            <p className="text-xs opacity-60">Chat with Harmony</p>
+            <p className="text-xs opacity-60">Get Oriented</p>
           </div>
         </div>
       </header>
@@ -203,26 +227,28 @@ export default function IntakeChat() {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.sender === "client" ? "justify-end" : "justify-start"}`}
+            className={`flex ${
+              msg.sender === "client" ? "justify-end" : "justify-start"
+            }`}
           >
             <div
               className={`max-w-[85%] px-4 py-3 ${
                 msg.sender === "client"
-                  ? "bg-[var(--primary)] text-white rounded-2xl rounded-br-md"
-                  : "bg-[var(--card)] border border-[var(--card-border)] rounded-2xl rounded-bl-md"
-              }`}
+                  ? "bg-[#f5d78e] text-[#1a1a1a]"
+                  : "bg-[#1a1a1a] border border-[#333]"
+              } rounded-2xl`}
             >
-              <p className="whitespace-pre-wrap">{msg.text}</p>
+              <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
             </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      {step !== "complete" && (
+      {step !== "ready" && step !== "grounding" && (
         <form
           onSubmit={handleSend}
-          className="bg-[var(--card)] border-t border-[var(--card-border)] p-4"
+          className="bg-[#1a1a1a] border-t border-[#333] p-4"
         >
           <div className="flex gap-2">
             <input
@@ -230,12 +256,12 @@ export default function IntakeChat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your response..."
-              className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              className="flex-1 px-4 py-3 bg-[#0f0f0f] border border-[#333] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f5d78e] text-white"
               autoFocus
             />
             <button
               type="submit"
-              className="px-6 py-3 bg-[var(--primary)] hover:bg-[var(--primary-glow)] text-white rounded-xl font-bold"
+              className="px-6 py-3 bg-[#f5d78e] hover:bg-[#e6b85c] text-[#1a1a1a] rounded-xl font-bold"
             >
               ➤
             </button>
@@ -243,14 +269,14 @@ export default function IntakeChat() {
         </form>
       )}
 
-      {step === "complete" && (
-        <div className="bg-[var(--card)] border-t border-[var(--card-border)] p-4 text-center">
-          <p className="text-sm opacity-60">
-            Waiting for Madam Groovy... (Position #{waitingPosition})
-          </p>
-          <p className="text-xs opacity-40 mt-1">
-            You can close this and return, or stay here.
-          </p>
+      {step === "ready" && (
+        <div className="bg-[#1a1a1a] border-t border-[#333] p-4">
+          <button
+            onClick={() => onComplete?.(flow)}
+            className="w-full py-3 bg-[#f5d78e] hover:bg-[#e6b85c] text-[#1a1a1a] rounded-xl font-bold"
+          >
+            BEGIN READING
+          </button>
         </div>
       )}
     </main>

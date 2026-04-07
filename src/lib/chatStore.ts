@@ -1,3 +1,13 @@
+export interface IntakeFlow {
+  name: string;
+  topic: string;
+  focus: "person" | "self" | "";
+  personName: string;
+  personContext: string;
+  lifeArea: string;
+  coreIssue: string;
+}
+
 export interface ChatMessage {
   id: string;
   text: string;
@@ -15,6 +25,7 @@ export interface ChatSession {
   status: "waiting" | "active" | "ended";
   createdAt: number;
   earnings: number;
+  intakeFlow?: IntakeFlow;
 }
 
 export interface ClientNote {
