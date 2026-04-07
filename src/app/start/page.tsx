@@ -16,10 +16,17 @@ interface IntakeFlow {
   coreIssue: string;
 }
 
+interface QueueContact {
+  name: string;
+  phone: string;
+  email?: string;
+}
+
 export default function StartPage() {
   const router = useRouter();
   const [status, setStatus] = useState<AvailabilityStatus>("offline");
   const [intakeFlow, setIntakeFlow] = useState<IntakeFlow | null>(null);
+  const [queueContact, setQueueContact] = useState<QueueContact | null>(null);
   const [inQueue, setInQueue] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -34,13 +41,14 @@ export default function StartPage() {
     setIntakeFlow(flow);
   };
 
-  const handleIntakeQueue = (flow: IntakeFlow) => {
+  const handleIntakeQueue = (flow: IntakeFlow, contact: QueueContact) => {
     addToWaitlist({
-      name: flow.name,
-      email: undefined,
-      phone: undefined,
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone,
     });
     setIntakeFlow(flow);
+    setQueueContact(contact);
     setInQueue(true);
   };
 
@@ -48,22 +56,20 @@ export default function StartPage() {
     return null;
   }
 
-  if (inQueue && intakeFlow) {
+  if (inQueue && queueContact) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center p-4">
         <div className="text-center max-w-md">
-          <span className="text-6xl mb-4 block">⏳</span>
-          <h2 className="text-2xl font-bold text-white mb-2">You're on the waitlist</h2>
-          <p className="text-gray-400 mb-6">We'll notify you when Harmony is available.</p>
+          <span className="text-6xl mb-4 block">✓</span>
+          <h2 className="text-2xl font-bold text-white mb-2">You're all set</h2>
+          <p className="text-gray-400 mb-2">We'll reach out as soon as Harmony is available</p>
+          <p className="text-gray-500 text-sm mb-6">Keep your phone nearby</p>
           <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
-            <p className="text-sm text-gray-500">Your question:</p>
-            <p className="text-white">{intakeFlow.topic}</p>
+            <p className="text-sm text-gray-500">We'll contact you at:</p>
+            <p className="text-white">{queueContact.phone}</p>
           </div>
           <button
-            onClick={() => {
-              setInQueue(false);
-              setIntakeFlow(null);
-            }}
+            onClick={() => router.push("/")}
             className="text-[#2f6f4f] text-sm"
           >
             ← Back to start
