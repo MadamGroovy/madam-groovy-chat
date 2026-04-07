@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import IntakeChat from "./IntakeChat";
 import ChatInterface from "./ChatInterface";
 import StatusBanner, { WaitlistForm } from "./StatusBanner";
@@ -17,8 +18,10 @@ interface IntakeFlow {
 }
 
 export default function LandingPage() {
+  const router = useRouter();
   const [showIntake, setShowIntake] = useState(false);
   const [intakeFlow, setIntakeFlow] = useState<IntakeFlow | null>(null);
+  const [inQueue, setInQueue] = useState(false);
   const [status, setStatus] = useState<AvailabilityStatus>("offline");
 
   useEffect(() => {
@@ -31,15 +34,19 @@ export default function LandingPage() {
   }, []);
 
   const handleStart = () => {
-    if (status === "offline") return;
-    setShowIntake(true);
+    router.push("/start");
   };
 
   const handleIntakeComplete = (flow: IntakeFlow) => {
     setIntakeFlow(flow);
   };
 
-  if (intakeFlow) {
+  const handleIntakeQueue = (flow: IntakeFlow) => {
+    setIntakeFlow(flow);
+    setInQueue(true);
+  };
+
+  if (intakeFlow && !inQueue) {
     return (
       <ChatInterface
         name={intakeFlow.name}
@@ -51,10 +58,39 @@ export default function LandingPage() {
     );
   }
 
+  if (intakeFlow && inQueue) {
+    return (
+      <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <span className="text-6xl mb-4 block">⏳</span>
+          <h2 className="text-2xl font-bold text-white mb-2">You're on the waitlist</h2>
+          <p className="text-gray-400 mb-6">We'll notify you when Harmony is available.</p>
+          <div className="bg-[#1a1a1a] rounded-xl p-4 mb-4">
+            <p className="text-sm text-gray-500">Your question:</p>
+            <p className="text-white">{intakeFlow.topic}</p>
+          </div>
+          <button
+            onClick={() => {
+              setInQueue(false);
+              setIntakeFlow(null);
+            }}
+            className="text-[#2f6f4f] text-sm"
+          >
+            ← Back to start
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (showIntake) {
     return (
       <div className="min-h-screen bg-[#0f0f0f]">
-        <IntakeChat onComplete={handleIntakeComplete} />
+        <IntakeChat 
+          onComplete={handleIntakeComplete} 
+          onJoinQueue={handleIntakeQueue}
+          status={status}
+        />
       </div>
     );
   }
