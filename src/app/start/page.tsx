@@ -12,8 +12,8 @@ interface IntakeFlow {
   focus: "person" | "self" | "";
   personName: string;
   personContext: string;
-  lifeArea: string;
-  coreIssue: string;
+  lifeArea?: string;
+  coreIssue?: string;
 }
 
 interface QueueContact {
